@@ -1,0 +1,132 @@
+{
+  "favorites": [
+    "河北彩花",
+    "榊原萌",
+    "水卜さくら",
+    "瑶真由香",
+    "河合あすな",
+    "彩月七緒",
+    "楓ふうあ",
+    "釈アリス",
+    "本庄鈴",
+    "鷲尾芽衣",
+    "夢乃あいか",
+    "涼森れむ",
+    "瀬戸環奈",
+    "村上悠華",
+    "七沢みあ",
+    "星乃莉子",
+    "椎名ゆな",
+    "神木麗",
+    "鈴村あいり",
+    "miru",
+    "川越にこ",
+    "天宮花南",
+    "宮下玲奈",
+    "小野六花",
+    "小鈴みかん",
+    "愛才りあ",
+    "月雲よる",
+    "望乃るい",
+    "未歩なな",
+    "桃園怜奈",
+    "清原みゆう",
+    "百田光希",
+    "石川澪",
+    "花守夏歩",
+    "長浜みつり",
+    "めぐり",
+    "新川空",
+    "橘メアリー",
+    "初美なのか",
+    "桜庭ももな",
+    "小笠原菜乃",
+    "東実果",
+    "愛弓りょう",
+    "乃坂ひより",
+    "塔乃花鈴",
+    "篠原いよ",
+    "ひなの花音",
+    "夏目玲香",
+    "福田ゆあ",
+    "結城花乃羽",
+    "井上もも",
+    "和香なつき",
+    "湊音かれん",
+    "いち花",
+    "雛形みくる",
+    "綾瀬まりあ",
+    "紫堂るい",
+    "奥井千晴",
+    "安達夕莉",
+    "鈴木希",
+    "白花にあ",
+    "金松季歩",
+    "新妻ゆうか"
+  ],
+  "makers": [
+    {
+      "name": "溜池ゴロー",
+      "url": "https://javdb.com/makers/Ww7?f=download"
+    },
+    {
+      "name": "S1 NO.1 STYLE",
+      "url": "https://javdb.com/makers/7R?f=download"
+    },
+    {
+      "name": "マドンナ(Madonna)",
+      "url": "https://javdb.com/makers/35e?f=download"
+    },
+    {
+      "name": "PRESTIGE,プレステージ",
+      "url": "https://javdb.com/makers/6M?f=download"
+    },
+    {
+      "name": "SOD Create",
+      "url": "https://javdb.com/makers/q6?f=download"
+    },
+    {
+      "name": "SODクリエイト",
+      "url": "https://javdb.com/makers/3Nkw?f=download"
+    },
+    {
+      "name": "IDEA POCKET",
+      "url": "https://javdb.com/makers/ZXX?f=download"
+    },
+    {
+      "name": "FALENO",
+      "url": "https://javdb.com/makers/Y46?f=download"
+    },
+    {
+      "name": "Fitch",
+      "url": "https://javdb.com/makers/Aby?f=download"
+    },
+    {
+      "name": "MOODYZ",
+      "url": "https://javdb.com/makers/zKW?f=download"
+    }
+  ],
+  "aliases": {
+    "歌野こころ": "浅野こころ",
+    "坂道みる": "miru",
+    "藤浦めぐ": "めぐり",
+    "清原みゆう": "小日向みゆう"
+  },
+  "makerAliases": {
+    "SODクリエイト": "SOD Create"
+  },
+  "filters": {
+    "SOD Create": [
+      "START-"
+    ],
+    "SODクリエイト": [
+      "START-"
+    ],
+    "PRESTIGE,プレステージ": [
+      "ABF-"
+    ],
+    "マドンナ(Madonna)": [
+      "JUR-"
+    ]
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "ingest": "node index.mjs ingest",
+    "enrich": "node index.mjs enrich",
+    "verify": "node index.mjs verify",
+    "rankings": "node index.mjs rankings",
+    "archive": "node index.mjs archive",
+    "delete": "node index.mjs delete",
+    "all": "node index.mjs all",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@notionhq/client": "^2.3.0",
+    "axios": "^1.14.0",
+    "cheerio": "^1.2.0",
+    "date-fns": "^4.1.0",
+    "dotenv": "^17.3.1",
+    "playwright-internal": "github:ttlns/undetected-playwright-node",
+    "puppeteer-real-browser": "^1.4.4",
+    "telegraf": "^4.16.3"
+  }
+}
