@@ -88,7 +88,7 @@ describe('diffSnapshots — no removed-entry lines', () => {
     }
   });
 
-  it('should format output as CODE | Maker | Actress | Title [🆕label]', async () => {
+  it('should format output as HTML code link with maker, actress, title, and 🆕label', async () => {
     const { diffSnapshots } = await import(MODULE_PATH);
 
     const prev = [];
@@ -96,7 +96,7 @@ describe('diffSnapshots — no removed-entry lines', () => {
 
     const lines = diffSnapshots(prev, curr, '月冠');
     assert.equal(lines.length, 1);
-    assert.equal(lines[0], 'XYZ-999 | MFR-Corp | 松本英美 | Hello World [🆕月冠]');
+    assert.equal(lines[0], '<a href="https://javdb.com/v/XYZ-999">XYZ-999</a> | MFR-Corp | 松本英美 | Hello World  🆕月冠');
   });
 });
 

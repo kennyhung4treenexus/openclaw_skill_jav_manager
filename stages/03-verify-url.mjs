@@ -29,7 +29,7 @@
  *     failCount >= MAX_RETRIES → permanentlyInvalid (no more retries)
  *
  * Env vars (JAV_VERIFY_ prefix):
- *   JAV_VERIFY_FLARESOLVERR_PORTS        - Comma-separated port list (default: 8191-8196)
+ *   JAV_VERIFY_FLARESOLVERR_PORTS        - Comma-separated port list (default: JAV_FLARESOLVERR_PORTS or 8191-8193)
  *   JAV_VERIFY_CONCURRENCY               - Max concurrent workers
  *   JAV_VERIFY_FLARESOLVERR_TIMEOUT_MS   - FlareSolverr request timeout
  *   JAV_VERIFY_FLARESOLVERR_COOLDOWN_MS  - Cooldown after failure
@@ -64,7 +64,7 @@ function invalidBackoffMs(failCount) {
 }
 
 function parseFlaresolverrPorts(raw) {
-  const fallback = [8191, 8192, 8193, 8194, 8195, 8196];
+  const fallback = [8191, 8192, 8193];
   if (!raw?.trim()) return fallback;
   const ports = [...new Set(
     raw.split(',')
@@ -76,7 +76,9 @@ function parseFlaresolverrPorts(raw) {
 }
 
 const FLARESOLVERR_PORTS = parseFlaresolverrPorts(
-  process.env.JAV_VERIFY_FLARESOLVERR_PORTS || process.env.JAVVERIFY_FLARESOLVERR_PORTS
+  process.env.JAV_VERIFY_FLARESOLVERR_PORTS
+  || process.env.JAVVERIFY_FLARESOLVERR_PORTS
+  || process.env.JAV_FLARESOLVERR_PORTS
 );
 const DEFAULT_CONCURRENCY = parseInt(
   process.env.JAV_VERIFY_CONCURRENCY || process.env.JAVVERIFY_CONCURRENCY

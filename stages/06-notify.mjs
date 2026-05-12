@@ -190,8 +190,8 @@ async function queryRecentItems(notion, databaseId, limit = 50) {
  * Diff two ranking snapshots and return human-readable change lines.
  * New entries only — removed entries are intentionally skipped.
  *
- * Format per item (single-line, MarkdownV2):
- *   [CODE](URL) \| Maker \| Actress \| Title  🆕label
+ * Format per item (single-line, Telegram HTML):
+ *   <a href="URL">CODE</a> | Maker | Actress | Title  🆕label
  */
 function diffSnapshots(prevItems, currItems, label) {
   const currMap = new Map(currItems.map(i => [i.code, i]));
@@ -217,10 +217,10 @@ function diffSnapshots(prevItems, currItems, label) {
 
 /**
  * Format new video lines from an array of { code, maker, actress, title, url }.
- * Single-line format with MarkdownV2 hyperlinks.
+ * Single-line format with Telegram HTML hyperlinks.
  *
- * Format per item (MarkdownV2):
- *   [CODE](URL) \| Maker \| Actress \| Title  ❤️
+ * Format per item (Telegram HTML):
+ *   <a href="URL">CODE</a> | Maker | Actress | Title  ❤️
  */
 function splitActressNames(actressText) {
   return String(actressText || '')
