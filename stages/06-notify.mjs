@@ -191,9 +191,9 @@ async function queryRecentItems(notion, databaseId, limit = 50) {
  * New entries only — removed entries are intentionally skipped.
  *
  * Format per item (single-line, Telegram HTML):
- *   <a href="URL">CODE</a> | Maker | Actress | Title  🆕label
+ *   <a href="URL">CODE</a> | Maker | Actress | Title  🆕label  ❤️
  */
-function diffSnapshots(prevItems, currItems, label) {
+function diffSnapshots(prevItems, currItems, label, favorites = []) {
   const currMap = new Map(currItems.map(i => [i.code, i]));
   const prevCodes = new Set(prevItems.map(i => i.code));
 
@@ -203,12 +203,16 @@ function diffSnapshots(prevItems, currItems, label) {
       const item = currMap.get(code);
       const url = item.url || `https://javdb.com/v/${item.code}`;
       const link = htmlLink(item.code, url);
-      lines.push([
+      const titlePart = `${escapeHtml(item.title || '')}  🆕${label}`;
+      const favoriteMarker = hasFavoriteActress(item.actress, favorites) ? '❤️' : null;
+      const parts = [
         link,
         escapeHtml(item.maker || ''),
         escapeHtml(item.actress || ''),
-        `${escapeHtml(item.title || '')}  🆕${label}`,
-      ].join(' | '));
+        titlePart,
+      ];
+      if (favoriteMarker) parts.push(favoriteMarker);
+      lines.push(parts.join(' | '));
     }
   }
 
@@ -307,14 +311,14 @@ async function sendLongReport(bot, chatId, text) {
  *
  * @returns {Array<string>} Formatted change lines
  */
-async function checkRanking(notion, databaseId, type, propertyName, label) {
+async function checkRanking(notion, databaseId, type, propertyName, label, favorites = []) {
   const prev = loadSnapshot(type);
   const records = await queryByCheckbox(notion, databaseId, propertyName);
   const currItems = records.filter(r => r.code);
 
   log(`[notify] [${type}] previous=${prev.items.length} current=${currItems.length}`, 'info');
 
-  const changes = diffSnapshots(prev.items, currItems, label);
+  const changes = diffSnapshots(prev.items, currItems, label, favorites);
 
   if (changes.length > 0) {
     log(`[notify] [${type}] ${changes.length} change(s) detected`, 'info');
@@ -478,9 +482,9 @@ export async function run(options = {}) {
 
     // ── Rankings (Daily / Weekly / Monthly / Triple Crown) ────────────
     const [dailyChanges, weeklyChanges, monthlyChanges] = await Promise.all([
-      checkRanking(notion, databaseId, 'daily',    'Daily Star',   '日冠'),
-      checkRanking(notion, databaseId, 'weekly',   'Weekly Star',  '週冠'),
-      checkRanking(notion, databaseId, 'monthly',  'Monthly Star', '月冠'),
+      checkRanking(notion, databaseId, 'daily',    'Daily Star',   '日冠', favorites),
+      checkRanking(notion, databaseId, 'weekly',   'Weekly Star',  '週冠', favorites),
+      checkRanking(notion, databaseId, 'monthly',  'Monthly Star', '月冠', favorites),
     ]);
 
     // Triple Crown: re-use ranking snapshots (Daily ∩ Weekly ∩ Monthly)
@@ -493,7 +497,7 @@ export async function run(options = {}) {
     const tripleCurr   = dailyItems.filter(i => weeklyCodes.has(i.code) && monthlyCodes.has(i.code));
 
     const prevTriple = loadSnapshot('triple_crown');
-    const tripleLines = diffSnapshots(prevTriple.items, tripleCurr, '三冠王');
+    const tripleLines = diffSnapshots(prevTriple.items, tripleCurr, '三冠王', favorites);
     if (tripleLines.length > 0) {
       log(`[notify] [triple_crown] ${tripleLines.length} change(s) detected`, 'info');
       saveSnapshot('triple_crown', tripleCurr);

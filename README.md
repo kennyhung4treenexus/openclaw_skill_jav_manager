@@ -19,7 +19,7 @@ JavDB maker pages
   -> verify MissAV URLs
   -> sync MissAV ranking checkboxes
   -> archive old Notion records
-  -> send Telegram summary
+  -> send Telegram summary with favorite-actress markers
   -> clean runtime artifacts
 ```
 

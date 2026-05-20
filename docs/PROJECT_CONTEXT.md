@@ -302,6 +302,8 @@ Responsibilities:
 
 - Find new videos from ingest cache and recent Notion records.
 - Diff daily, weekly, monthly, and triple-crown snapshots.
+- Mark new-video and ranking notification lines with `❤️` when the actress
+  matches `config.favorites`.
 - Report permanently failed Stage 01 items.
 - Send Telegram notification via HTML parse mode.
 - Write `cache/notify-summary.json`.

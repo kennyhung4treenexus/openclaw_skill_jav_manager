@@ -98,6 +98,28 @@ describe('diffSnapshots — no removed-entry lines', () => {
     assert.equal(lines.length, 1);
     assert.equal(lines[0], '<a href="https://javdb.com/v/XYZ-999">XYZ-999</a> | MFR-Corp | 松本英美 | Hello World  🆕月冠');
   });
+
+  it('should append ❤️ when a new ranking entry has a favorite actress', async () => {
+    const { diffSnapshots } = await import(MODULE_PATH);
+
+    const prev = [];
+    const curr = [item('FAV-001', 'MFR-Corp', '青空ひかり', 'Favorite Ranking Title')];
+
+    const lines = diffSnapshots(prev, curr, '三冠王', ['青空ひかり']);
+    assert.equal(lines.length, 1);
+    assert.equal(lines[0], '<a href="https://javdb.com/v/FAV-001">FAV-001</a> | MFR-Corp | 青空ひかり | Favorite Ranking Title  🆕三冠王 | ❤️');
+  });
+
+  it('should not append ❤️ when ranking actress is not in favorites', async () => {
+    const { diffSnapshots } = await import(MODULE_PATH);
+
+    const prev = [];
+    const curr = [item('NONFAV-001', 'MFR-Corp', '松本英美', 'Normal Ranking Title')];
+
+    const lines = diffSnapshots(prev, curr, '日冠', ['青空ひかり']);
+    assert.equal(lines.length, 1);
+    assert.equal(lines[0], '<a href="https://javdb.com/v/NONFAV-001">NONFAV-001</a> | MFR-Corp | 松本英美 | Normal Ranking Title  🆕日冠');
+  });
 });
 
 describe('diffSnapshots — edge cases', () => {
