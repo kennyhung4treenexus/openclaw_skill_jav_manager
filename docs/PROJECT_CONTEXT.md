@@ -49,21 +49,25 @@ skill, user systemd units, and wrapper scripts:
 
 ```text
 Application split from skill folder: complete
-Runtime state relocation to ~/.local/state/jav-manager: complete
+Edge mutable state relocation to /srv/alfred/shared/jav-manager: complete
 Seven-stage pipeline implementation: active
-Systemd user scheduler: active
-Pipeline watchdog/alert path: active
+Production lifecycle: edge-active; scheduler authority: Edge
+Accepted immutable release: 53663d66d7f9a9043f2afc5a57c041541ddc4aff
+Pipeline watchdog/alert path: active; Gate Telegram account `default`
 Tests: node --test based, focused on scraper/archive/notify/delete logic
 ```
 
-The app root is the production codebase. The OpenClaw skill folder is only a
-thin operating guide/wrapper and should not contain app source, cache, logs,
-secrets, or `node_modules/`.
+The GCP app root is source/rollback material, not the active production
+execution root. Production runs from the accepted exact-SHA release selected by
+`/srv/alfred/prod/jav-manager/current` on Edge, with mutable config/state/logs
+under `/srv/alfred/shared/jav-manager`. The OpenClaw skill folder is only a thin
+operating guide and must not contain app source, cache, logs, secrets, or
+`node_modules/`.
 
 Important current caveat:
 
 ```text
-config.json has local production changes in the working tree. Do not overwrite,
+config.json has local source changes in the working tree. Do not overwrite,
 reformat, or revert it unless Kenny explicitly asks.
 ```
 
@@ -92,10 +96,24 @@ External dependencies:
 |---|---|---|
 | JavDB | Stage 01 | Maker listing and detail scraping through FlareSolverr. |
 | MissAV | Stages 03, 04 | URL verification and ranking scraping through FlareSolverr. |
-| FlareSolverr Docker | Stages 01, 03, 04 | Default ports `8191,8192,8193`. |
+| FlareSolverr Docker | Stages 01, 03, 04 | Default local endpoints `http://127.0.0.1:8191`, `http://127.0.0.1:8192`, `http://127.0.0.1:8193`; shared with News Editor. |
+
+Shared FlareSolverr operating note, confirmed 2026-06-04:
+
+- The shared containers are `flaresolverr`, `flaresolverr-2`, and
+  `flaresolverr-3`, all currently reporting FlareSolverr `3.5.0`.
+- Application callers should use local endpoints only:
+  `http://127.0.0.1:8191`, `http://127.0.0.1:8192`, and
+  `http://127.0.0.1:8193`.
+- Treat FlareSolverr as shared infrastructure for JAV Manager and News Editor.
+  Coordinate restarts/recreates because they can interrupt both apps.
+- Current server Docker publishes these ports on `0.0.0.0`; this is an
+  architecture/security risk unless explicitly intended. Preferred future bind
+  model is localhost-only, after checking both apps and adding a rollback plan.
+
 | Notion API | Stages 01, 02, 03, 04, 05, 06 | Existing-code lookup, page create/update/archive, notification queries. |
-| Telegram Bot API | Stage 06 and alert scripts | Sends summaries and operational alerts. |
-| OpenClaw gateway/CLI | Alert script | Starts Alfred when systemd pipeline fails or appears missed. |
+| Telegram Bot API | Stage 06 | Sends the normal pipeline summary; this target is independent of operational watcher routing. |
+| Authenticated GCP Gateway route | OnFailure/watchdog alert | Sends a fixed operational alert directly to Telegram account `default` (`alfred-gate`) without invoking an agent. |
 
 Runtime stack:
 
@@ -141,19 +159,21 @@ Runtime state:
 
 | Path | Purpose |
 |---|---|
-| `~/.local/state/jav-manager/cache/` | Stage cache, summaries, snapshots, URL health, test artifacts. |
-| `~/.local/state/jav-manager/logs/` | systemd wrapper logs and `jav-pipeline-latest.log`. |
-| `~/.local/state/jav-manager/app-logs/` | App-level dated logs from `lib/shared.mjs`. |
-| `~/.local/state/jav-manager/session/` | Scraper/browser session and cookie state. |
-| `~/.local/state/jav-manager/ingest-index.json` | Rebuilt ingest index. |
-| `~/.local/state/jav-manager/jav-pipeline.lock` | Wrapper-level lock for full pipeline. |
-| `~/.local/state/jav-manager/alerts/` | Alert fingerprint markers. |
+| `/srv/alfred/shared/jav-manager/state/cache/` | Stage cache, summaries, snapshots, URL health, test artifacts. |
+| `/srv/alfred/shared/jav-manager/logs/` | systemd wrapper logs and `jav-pipeline-latest.log`. |
+| `/srv/alfred/shared/jav-manager/state/app-logs/` | App-level dated logs from `lib/shared.mjs`. |
+| `/srv/alfred/shared/jav-manager/state/session/` | Scraper/browser session and cookie state. |
+| `/srv/alfred/shared/jav-manager/state/ingest-index.json` | Rebuilt ingest index. |
+| `/srv/alfred/shared/jav-manager/state/jav-pipeline.lock` | Wrapper-level lock for full pipeline. |
+| `/srv/alfred/shared/jav-manager/state/alerts/` | Alert pending/delivered ledger and related markers. |
 
 Path policy:
 
-`lib/shared.mjs` routes app/config files to the app root and runtime files to
-`~/.local/state/jav-manager`. Existing stage code may still call
-`getSkillPath()`, but runtime paths are redirected to the state directory.
+`lib/shared.mjs` routes immutable app files to the accepted release, mutable
+configuration to `/srv/alfred/shared/jav-manager/config`, and runtime files to
+`/srv/alfred/shared/jav-manager/state` or `logs`. Existing stage code may still
+call `getSkillPath()`, but the Edge runtime bindings resolve the accepted shared
+paths.
 
 ---
 
@@ -423,16 +443,19 @@ Alert path:
 ```text
 jav-pipeline.service OnFailure
   -> jav-pipeline-alert.service
-  -> /home/hungsvradmin/scripts/jav-pipeline-alert.sh failure
-  -> openclaw agent --channel telegram --to 6929449615 --deliver
+  -> /srv/alfred/prod/jav-manager/current/deploy/jav-pipeline-alert.sh failure
+  -> authenticated GCP Gateway `send`
+  -> Telegram account `default` -> `alfred-gate`
 ```
 
 Watchdog path:
 
 ```text
 jav-pipeline-watchdog.timer
-  -> /home/hungsvradmin/scripts/jav-pipeline-watchdog.sh
-  -> /home/hungsvradmin/scripts/jav-pipeline-alert.sh missed|incomplete
+  -> /srv/alfred/prod/jav-manager/current/deploy/jav-pipeline-watchdog.sh
+  -> /srv/alfred/prod/jav-manager/current/deploy/jav-pipeline-alert.sh missed|incomplete
+  -> authenticated GCP Gateway `send`
+  -> Telegram account `default` -> `alfred-gate`
 ```
 
 Important monitoring behaviour:
@@ -442,6 +465,17 @@ Important monitoring behaviour:
   positives during systemd/journal timing gaps.
 - Suspicious scraping/Cloudflare/error patterns can still trigger incomplete
   alerts even if the wrapper exited successfully.
+- The mutable Edge runtime sets `JAV_ALERT_ACCOUNT=default`. The sender allows
+  only `default`, records Gate attribution/session metadata, requires a verified
+  delivery receipt, and keeps its existing pending/delivered deduplication
+  ledger.
+- The sender does **not** invoke `alfred-gate`, `jav-ops`, or another reasoning
+  agent. Its canned message asks for `jav-ops` follow-up, but that follow-up is
+  not automatically dispatched. Replies in Telegram enter `alfred-gate`
+  because `default` is bound to Gate.
+- This routing applies only to operational OnFailure/watchdog alerts. Stage 06
+  pipeline-summary Telegram delivery is a separate app path and was not changed
+  by the 2026-08-24 watcher-routing update.
 
 Useful read-only commands:
 
@@ -449,7 +483,7 @@ Useful read-only commands:
 systemctl --user show jav-pipeline.service -p ActiveState -p SubState -p Result -p ExecMainStatus --no-pager
 systemctl --user list-timers jav-pipeline.timer jav-pipeline-watchdog.timer --all --no-pager
 journalctl --user -u jav-pipeline.service -n 160 --no-pager
-tail -160 /home/hungsvradmin/.local/state/jav-manager/logs/jav-pipeline-latest.log
+tail -160 /srv/alfred/shared/jav-manager/logs/jav-pipeline-latest.log
 ```
 
 ---
@@ -474,9 +508,9 @@ npm test
 Wrapper checks:
 
 ```bash
-/home/hungsvradmin/scripts/run-jav-pipeline.sh --check-only
-/home/hungsvradmin/scripts/jav-pipeline-alert.sh --check-only
-/home/hungsvradmin/scripts/jav-pipeline-watchdog.sh --check-only
+/srv/alfred/prod/jav-manager/current/deploy/run-jav-pipeline.sh --check-only
+/srv/alfred/prod/jav-manager/current/deploy/jav-pipeline-alert.sh --check-only
+/srv/alfred/prod/jav-manager/current/deploy/jav-pipeline-watchdog.sh --check-only
 ```
 
 Systemd unit validation:

@@ -40,6 +40,7 @@ production side effects:
 - Notion page create/update/archive operations
 - Telegram sends
 - Docker / FlareSolverr container restart or recreate operations
+- FlareSolverr bind/port changes, especially the shared `8191-8193` endpoints
 - systemd service or timer lifecycle changes
 - cleanup that deletes cache, logs, artifacts, browser sessions, or processes
 
@@ -77,6 +78,15 @@ Runtime stack:
 | Notifications | Telegram via Telegraf |
 | Scheduler | systemd user service/timers |
 | Tests | `node --test` |
+
+Shared FlareSolverr note, confirmed 2026-06-04:
+
+- Use only local endpoints `http://127.0.0.1:8191`, `http://127.0.0.1:8192`,
+  and `http://127.0.0.1:8193` from app code and diagnostics.
+- The three FlareSolverr containers are shared with News Editor. Restart,
+  recreate, version, or port/bind changes can affect both apps.
+- Current Docker bind is `0.0.0.0:8191-8193`; treat that as a server
+  architecture/security risk to review, not as a required app contract.
 
 Runtime files:
 

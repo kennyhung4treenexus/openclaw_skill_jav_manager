@@ -45,20 +45,26 @@ function extractCode(page) {
  * Paginated Notion database query helper.
  * Returns all matching records (follows next_cursor automatically).
  */
-async function queryAll(notion, databaseId, filter, pageSize = NOTION_PAGE_SIZE) {
+async function queryAll(notion, databaseId, filter, pageSize = NOTION_PAGE_SIZE, label = 'archive:query') {
   const records = [];
   let cursor;
+  let page = 1;
 
   do {
-    const resp = await notion.databases.query({
-      database_id: databaseId,
-      filter,
-      start_cursor: cursor,
-      page_size: pageSize,
-    });
+    const resp = await notionRetry(
+      () => notion.databases.query({
+        database_id: databaseId,
+        filter,
+        start_cursor: cursor,
+        page_size: pageSize,
+      }),
+      `${label}: page ${page}`
+    );
 
     records.push(...resp.results);
     cursor = resp.has_more ? resp.next_cursor : undefined;
+    page++;
+    if (cursor) await sleep(RATE_LIMIT_DELAY_MS);
   } while (cursor);
 
   return records;
@@ -71,10 +77,16 @@ async function tier1_inactive(notion, databaseId, dryRun) {
   const cutD = cutDate(INACTIVE_THRESHOLD_DAYS);
   log(`[archive:tier1] Cut-off: ${cutD} (${INACTIVE_THRESHOLD_DAYS} days ago) — Active → Inactive [Archive]`, 'info');
 
-  const records = await queryAll(notion, databaseId, {
-    property: 'Date',
-    date: { before: cutD },
-  });
+  const records = await queryAll(
+    notion,
+    databaseId,
+    {
+      property: 'Date',
+      date: { before: cutD },
+    },
+    NOTION_PAGE_SIZE,
+    'archive:tier1 query'
+  );
 
   // Only touch Active records
   const activeRecords = records.filter(r =>
@@ -125,12 +137,18 @@ async function tier2_archive(notion, databaseId, dryRun) {
   const cutD = cutDate(ARCHIVE_THRESHOLD_DAYS);
   log(`[archive:tier2] Cut-off: ${cutD} (${ARCHIVE_THRESHOLD_DAYS} days ago) — Inactive [Archive] + Date → archive/trash`, 'info');
 
-  const records = await queryAll(notion, databaseId, {
-    and: [
-      { property: 'Status', select: { equals: 'Inactive [Archive]' } },
-      { property: 'Date',   date: { before: cutD } },
-    ],
-  });
+  const records = await queryAll(
+    notion,
+    databaseId,
+    {
+      and: [
+        { property: 'Status', select: { equals: 'Inactive [Archive]' } },
+        { property: 'Date',   date: { before: cutD } },
+      ],
+    },
+    NOTION_PAGE_SIZE,
+    'archive:tier2 query'
+  );
 
   log(`[archive:tier2] Found ${records.length} records to archive/trash`, 'info');
 

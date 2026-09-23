@@ -3,12 +3,18 @@
 Seven-stage personal automation pipeline for maintaining Kenny's JAV Notion
 database from configured JavDB maker sources.
 
-**App path:** `/home/hungsvradmin/apps/jav-manager`
-**Runtime state:** `/home/hungsvradmin/.local/state/jav-manager`
+**Development/source path:** `/home/hungsvradmin/apps/jav-manager`
+**Production:** immutable release on the accepted Alfred Edge host
+**Runtime state:** `/srv/alfred/shared/jav-manager/state`
 **OpenClaw skill:** `/home/hungsvradmin/.openclaw/skills/jav-manager`
 
 For the full current project state, stage details, scheduler notes, and safety
 guardrails, use `docs/PROJECT_CONTEXT.md` as the source of truth.
+
+The GCP checkout is source/rollback material. Production runs from
+`/srv/alfred/prod/jav-manager/current` on Edge; do not edit an accepted release
+in place. Always resolve the accepted authority record before production
+operations.
 
 ## What It Does
 
@@ -112,18 +118,17 @@ Stage-specific options include:
 ## Runtime Paths
 
 ```text
-App source:       /home/hungsvradmin/apps/jav-manager
-Secrets:          /home/hungsvradmin/apps/jav-manager/.env
-Config:           /home/hungsvradmin/apps/jav-manager/config.json
-Runtime cache:    /home/hungsvradmin/.local/state/jav-manager/cache
-Wrapper logs:     /home/hungsvradmin/.local/state/jav-manager/logs
-App logs:         /home/hungsvradmin/.local/state/jav-manager/app-logs
-Browser sessions: /home/hungsvradmin/.local/state/jav-manager/session
+GCP source/rollback: /home/hungsvradmin/apps/jav-manager
+Edge current:        /srv/alfred/prod/jav-manager/current
+Edge config:         /srv/alfred/shared/jav-manager/config
+Edge runtime cache:  /srv/alfred/shared/jav-manager/state/cache
+Edge wrapper logs:   /srv/alfred/shared/jav-manager/logs
+Edge browser state:  /srv/alfred/shared/jav-manager/state/session
 ```
 
 ## Scheduler
 
-User systemd runs the full pipeline at:
+Edge user systemd runs the full pipeline at:
 
 ```text
 05:00, 11:00, 17:00, 23:00 HKT
@@ -135,8 +140,22 @@ Useful read-only status commands:
 systemctl --user show jav-pipeline.service -p ActiveState -p SubState -p Result -p ExecMainStatus --no-pager
 systemctl --user list-timers jav-pipeline.timer jav-pipeline-watchdog.timer --all --no-pager
 journalctl --user -u jav-pipeline.service -n 120 --no-pager
-tail -120 /home/hungsvradmin/.local/state/jav-manager/logs/jav-pipeline-latest.log
+tail -120 /srv/alfred/shared/jav-manager/logs/jav-pipeline-latest.log
 ```
+
+Run these commands on the accepted Edge host. GCP JAV timers remain disabled;
+do not enable two scheduler authorities.
+
+## Watcher alerts
+
+Operational OnFailure/watchdog alerts use `JAV_ALERT_ACCOUNT=default`. The live
+Telegram binding maps `default` to `alfred-gate`, so alerts and replies appear
+in the Alfred Gate Telegram conversation.
+
+The alert helper performs direct authenticated Gateway `send`; it does not
+invoke Gate or automatically dispatch `jav-ops`. Its fixed message asks for
+`jav-ops` follow-up. This is separate from the Stage 06 pipeline-summary
+Telegram notification path.
 
 ## Safety
 
