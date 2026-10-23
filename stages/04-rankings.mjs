@@ -22,9 +22,9 @@ import { FlareSolverrPool } from '../lib/net/flaresolverr-pool.mjs';
 // Config
 // ---------------------------------------------------------------------------
 const RANKING_ENDPOINTS = [
-  { key: 'Daily Star',   url: 'https://missav.ai/dm291/today-hot' },
-  { key: 'Weekly Star',  url: 'https://missav.ai/dm169/weekly-hot' },
-  { key: 'Monthly Star', url: 'https://missav.ai/dm263/monthly-hot' },
+  { key: 'Daily Star',   url: 'https://missav.ws/dm301/today-hot?sort=released_at' },
+  { key: 'Weekly Star',  url: 'https://missav.ws/dm170/weekly-hot?sort=released_at' },
+  { key: 'Monthly Star', url: 'https://missav.ws/dm273/monthly-hot?sort=released_at' },
 ];
 
 const PAGES_PER_ENDPOINT    = 5;
@@ -85,8 +85,8 @@ function readRichTextCode(property) {
 
 /**
  * Extract a slug from an href path segment for sanity-checking against alt.
- * e.g. "https://missav.ai/dm291/fthtd-214" → "FTHTD-214"
- *      "https://missav.ai/fthtd-214"        → "FTHTD-214"
+ * e.g. "https://missav.ws/dm301/fthtd-214" → "FTHTD-214"
+ *      "https://missav.ws/fthtd-214"        → "FTHTD-214"
  */
 function extractHrefSlug(href) {
   if (!href) return '';
@@ -119,7 +119,7 @@ function createFlaresolverrPool() {
     requestDelayMs: 500,
     maxFailStreak: 2,
     session: `jav-rankings-${Date.now()}`,
-    warmupUrl: 'https://missav.ai/',
+    warmupUrl: 'https://missav.ws/',
   });
 }
 
@@ -264,6 +264,20 @@ async function fetchRankingPage(pool, category, page, url) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Build a ranking page URL without breaking an existing query string.
+ * Page 1 keeps the endpoint as configured. Later pages set `page`.
+ * @param {string} baseUrl
+ * @param {number} page
+ * @returns {string}
+ */
+export function rankingPageUrl(baseUrl, page) {
+  if (page <= 1) return baseUrl;
+  const url = new URL(baseUrl);
+  url.searchParams.set('page', String(page));
+  return url.toString();
+}
+
+/**
  * @param {FlareSolverrPool} pool
  * @param {string} category
  * @param {string} baseUrl
@@ -277,7 +291,7 @@ async function scrapeCategory(pool, category, baseUrl) {
   let pagesSuspicious = 0;
 
   for (let pg = 1; pg <= PAGES_PER_ENDPOINT; pg++) {
-    const pageUrl = pg === 1 ? baseUrl : `${baseUrl}?page=${pg}`;
+    const pageUrl = rankingPageUrl(baseUrl, pg);
     const pr = await fetchRankingPage(pool, category, pg, pageUrl);
 
     pageResults.push(pr);

@@ -199,7 +199,7 @@ function buildProperties(code, metadata, isFavorite, fileUploadId) {
     'Daily Star': { checkbox: false },
     'Weekly Star': { checkbox: false },
     'Monthly Star': { checkbox: false },
-    'URL': { url: `https://missav.ai/${code}` },
+    'URL': { url: `https://missav.ws/${code}` },
     'URL no code': { url: null },
     'URL Chinese': { url: null }
   };

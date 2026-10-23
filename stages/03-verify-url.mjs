@@ -98,12 +98,12 @@ const VOLATILE_SLOTS = [
   {
     slot: 'noCode',
     propName: 'URL no code',
-    buildExpectedUrl: (code) => `https://missav.ai/${code}-uncensored-leak/`,
+    buildExpectedUrl: (code) => `https://missav.ws/${code}-uncensored-leak/`,
   },
   {
     slot: 'chinese',
     propName: 'URL Chinese',
-    buildExpectedUrl: (code) => `https://missav.ai/${code}-chinese-subtitle/`,
+    buildExpectedUrl: (code) => `https://missav.ws/${code}-chinese-subtitle/`,
   },
 ];
 
@@ -607,7 +607,7 @@ async function _run(options, concurrency) {
     requestDelayMs: FS_DELAY,
     maxFailStreak: FS_FAILSTREAK,
     session: `jav-verify-${Date.now()}`,
-    warmupUrl: 'https://missav.ai/',
+    warmupUrl: 'https://missav.ws/',
   });
   await fsPool.initialize();
 
@@ -763,6 +763,6 @@ async function _run(options, concurrency) {
 
 export const config = {
   name: 'verify-url',
-  description: 'FlareSolverr-based missav.ai URL verification for Notion records (v3 — bootstrap auto-enabled, permanentlyInvalid guard, per-property stats)',
+  description: 'FlareSolverr-based missav.ws URL verification for Notion records (v3 — bootstrap auto-enabled, permanentlyInvalid guard, per-property stats)',
   dependencies: [],
 };

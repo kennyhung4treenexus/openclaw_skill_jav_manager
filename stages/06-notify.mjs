@@ -40,10 +40,29 @@ function escapeHtml(text) {
 }
 
 /**
+ * Notion still stores the old MissAV host. Telegram links should open missav.ws.
+ * Other hosts (JavDB fallback, already-correct missav.ws) pass through.
+ */
+export function preferMissavWs(url) {
+  if (!url || typeof url !== 'string') return url;
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === 'missav.ai' || parsed.hostname === 'www.missav.ai') {
+      parsed.hostname = 'missav.ws';
+      parsed.protocol = 'https:';
+      return parsed.toString();
+    }
+  } catch {
+    return url;
+  }
+  return url;
+}
+
+/**
  * Build a Telegram HTML hyperlink: <a href="url">text</a>
  */
 function htmlLink(text, url) {
-  return `<a href="${escapeHtml(url)}">${escapeHtml(text)}</a>`;
+  return `<a href="${escapeHtml(preferMissavWs(url))}">${escapeHtml(text)}</a>`;
 }
 
 async function notionRetry(fn, label = 'notion') {

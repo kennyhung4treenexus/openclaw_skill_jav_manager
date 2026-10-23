@@ -30,7 +30,7 @@ Usage:
 Commands:
   ingest     - Run stage 1: Collect raw data from JavDB
   enrich     - Run stage 2: Enhance metadata with additional sources
-  verify     - Run stage 3: Verify missav.ai URLs (verify-url)
+  verify     - Run stage 3: Verify missav.ws URLs (verify-url)
   rankings   - Run stage 4: Apply curation and ranking logic
   archive    - Run stage 5: Move to long-term storage
   notify     - Run stage 6: Smart Telegram notification (new videos + triple crowns)
