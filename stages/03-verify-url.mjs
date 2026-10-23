@@ -29,7 +29,7 @@
  *     failCount >= MAX_RETRIES → permanentlyInvalid (no more retries)
  *
  * Env vars (JAV_VERIFY_ prefix):
- *   JAV_VERIFY_FLARESOLVERR_PORTS        - Comma-separated port list (default: JAV_FLARESOLVERR_PORTS or 8191-8193)
+ *   JAV_VERIFY_FLARESOLVERR_PORTS        - Comma-separated port list (default: JAV_FLARESOLVERR_PORTS or 8291-8293)
  *   JAV_VERIFY_CONCURRENCY               - Max concurrent workers
  *   JAV_VERIFY_FLARESOLVERR_TIMEOUT_MS   - FlareSolverr request timeout
  *   JAV_VERIFY_FLARESOLVERR_COOLDOWN_MS  - Cooldown after failure
@@ -40,7 +40,7 @@
  *   JAV_VERIFY_INVALID_BACKOFF_4_PLUS    - Backoff 4+ fails  (default: 604800000 = 7d)
  */
 
-import { log, getSkillPath, writeJsonAtomic, readJson, sleep, notionRetry } from '../lib/shared.mjs';
+import { log, getSkillPath, writeJsonAtomic, readJson, sleep, notionRetry, assertShadowDryRun, assertJavFlaresolverrPorts } from '../lib/shared.mjs';
 import { FlareSolverrPool } from '../lib/net/flaresolverr-pool.mjs';
 import { Client } from '@notionhq/client';
 import { existsSync, unlinkSync } from 'fs';
@@ -64,7 +64,7 @@ function invalidBackoffMs(failCount) {
 }
 
 function parseFlaresolverrPorts(raw) {
-  const fallback = [8191, 8192, 8193];
+  const fallback = [8291, 8292, 8293];
   if (!raw?.trim()) return fallback;
   const ports = [...new Set(
     raw.split(',')
@@ -564,6 +564,8 @@ export async function run(options = {}) {
     dryRun, verbose, limit, simulateRecords,
     visibleOnly, retryOnly, maxRetryItems, concurrency = DEFAULT_CONCURRENCY,
   } = options;
+  assertShadowDryRun('03-verify-url', dryRun);
+  assertJavFlaresolverrPorts(FLARESOLVERR_PORTS);
 
   const lockPath = getLockPath();
   if (!acquireLock(lockPath)) {
@@ -610,6 +612,7 @@ async function _run(options, concurrency) {
     warmupUrl: 'https://missav.ws/',
   });
   await fsPool.initialize();
+  try {
 
   // ── Load cache ───────────────────────────────────────────────────────
   const cache = loadHealthCache();
@@ -759,6 +762,9 @@ async function _run(options, concurrency) {
     tasks: allTasks.length,
     cacheEntries: Object.keys(cache.records ?? {}).length,
   };
+  } finally {
+    await fsPool.close();
+  }
 }
 
 export const config = {

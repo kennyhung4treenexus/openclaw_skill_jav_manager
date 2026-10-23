@@ -1,0 +1,10 @@
+[Unit]
+Description=Validate and self-heal JAV-owned FlareSolverr instances
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+Environment=JAV_FLARESOLVERR_PORTS=8291,8292,8293
+ExecStart=/usr/local/libexec/alfred-jav-flaresolverr-watchdog.sh --repair
+TimeoutStartSec=4min

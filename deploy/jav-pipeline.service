@@ -1,0 +1,23 @@
+[Unit]
+Description=Run accepted-target JAV Manager pipeline
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/srv/alfred/prod/jav-manager/current/index.mjs
+
+[Service]
+Type=oneshot
+Environment=JAV_AUTOMATIC_RUN=1
+Environment=JAV_NODE_BIN=/opt/alfred/runtime/node-v24.19.0-linux-x64/bin/node
+Environment=PATH=/opt/alfred/runtime/node-v24.19.0-linux-x64/bin:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=/srv/alfred/shared/jav-manager/config/runtime.env
+ExecStart=/srv/alfred/prod/jav-manager/current/deploy/run-jav-pipeline.sh
+TimeoutStartSec=5h5min
+Nice=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/alfred/shared/jav-manager
+
+[Install]
+WantedBy=default.target

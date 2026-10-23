@@ -25,7 +25,7 @@
  *   - Pass { skillRoot: '/tmp/test-root' } to resolve all paths under a sandbox
  */
 
-import { getSkillPath, writeJsonAtomic, log } from '../lib/shared.mjs';
+import { getSkillPath, writeJsonAtomic, log, assertShadowDryRun } from '../lib/shared.mjs';
 import {
   existsSync, readdirSync, unlinkSync, statSync,
   mkdirSync, renameSync, rmdirSync
@@ -431,6 +431,7 @@ function saveDryRunPreview(resolvePath, preview) {
 // ---------------------------------------------------------------------------
 export async function run(options = {}) {
   const { dryRun = true, skillRoot } = options;
+  assertShadowDryRun('07-delete', dryRun);
 
   // Build the path resolver: injectable root for testing, or real skill root
   const resolvePath = skillRoot

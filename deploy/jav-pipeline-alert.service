@@ -1,0 +1,15 @@
+[Unit]
+Description=Deliver an authenticated JAV Manager operational alert
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/srv/alfred/shared/jav-manager/config/runtime.env
+ExecStart=/srv/alfred/prod/jav-manager/current/deploy/jav-pipeline-alert.sh failure
+TimeoutStartSec=2min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/alfred/shared/jav-manager

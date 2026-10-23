@@ -10,8 +10,9 @@
  * All history files store objects { code, updatedAt } for reliable diffing.
  */
 
-import { getSkillPath, writeJsonAtomic, readJson, log } from '../lib/shared.mjs';
+import { getSkillPath, writeJsonAtomic, readJson, log, assertShadowDryRun } from '../lib/shared.mjs';
 import { Client } from '@notionhq/client';
+import crypto from 'node:crypto';
 import { existsSync, readFileSync } from 'fs';
 import { Telegraf } from 'telegraf';
 
@@ -280,8 +281,8 @@ function formatNewVideos(newItems, favorites) {
  * Send a long message to Telegram, splitting on newline boundaries near
  * TG_CHUNK_SIZE to keep individual messages readable.
  */
-async function sendLongReport(bot, chatId, text) {
-  // Split on paragraph (double-newline) boundaries to avoid breaking MarkdownV2 entities
+function chunkLongReport(text) {
+  // Split on paragraph (double-newline) boundaries to avoid breaking HTML entities.
   const chunks = [];
   let remaining = text;
   while (remaining.length > 0) {
@@ -303,21 +304,51 @@ async function sendLongReport(bot, chatId, text) {
     remaining = remaining.slice(cut).replace(/^[\n\r]+/, '');
   }
 
+  return chunks
+    .map(chunk => chunk.replace(/^[\n\r]+|[\n\r]+$/g, ''))
+    .filter(Boolean);
+}
+
+function summarizeTelegramReceipts(receipts) {
+  if (!Array.isArray(receipts) || receipts.length === 0) {
+    throw new Error('Telegram delivery returned no receipts');
+  }
+  const messageIds = receipts.map((receipt, index) => {
+    const messageId = receipt?.message_id;
+    if (!Number.isSafeInteger(messageId) || messageId <= 0) {
+      throw new Error(`Telegram chunk ${index + 1} returned an invalid receipt`);
+    }
+    return String(messageId);
+  });
+  return {
+    sent: true,
+    plannedChunks: receipts.length,
+    deliveredChunks: receipts.length,
+    receiptSha256: crypto.createHash('sha256').update(messageIds.join('\n')).digest('hex'),
+  };
+}
+
+async function sendLongReport(bot, chatId, text) {
+  const chunks = chunkLongReport(text);
+
   log(`[notify] sendLongReport: ${text.length} chars → ${chunks.length} chunk(s)`, 'info');
 
+  const receipts = [];
   for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i].replace(/^[\n\r]+|[\n\r]+$/g, '');
-    if (!chunk) continue;
     try {
-      await bot.telegram.sendMessage(chatId, chunk, {
+      const receipt = await bot.telegram.sendMessage(chatId, chunks[i], {
         parse_mode: 'HTML',
         disable_web_page_preview: true,
       });
+      receipts.push(receipt);
     } catch (err) {
       log(`[notify] Chunk ${i + 1} send failed: ${err.message}`, 'error');
+      throw new Error(`Telegram chunk ${i + 1}/${chunks.length} delivery failed`);
     }
     if (i < chunks.length - 1) await sleep(300);
   }
+
+  return summarizeTelegramReceipts(receipts);
 }
 
 // ---------------------------------------------------------------------------
@@ -445,7 +476,7 @@ async function smartSend(bot, chatId, sections) {
   const nonEmpty = sections.filter(s => s.lines.length > 0);
   if (nonEmpty.length === 0) {
     log('[notify] Nothing new to report — skipping Telegram send', 'info');
-    return false;
+    return { sent: false, plannedChunks: 0, deliveredChunks: 0, receiptSha256: null };
   }
 
   // Build report with proper spacing (actual newlines)
@@ -461,8 +492,7 @@ async function smartSend(bot, chatId, sections) {
 
   log(`[notify] Sending notification: ${finalText.length} chars, ${nonEmpty.length} section(s)`, 'info');
 
-  await sendLongReport(bot, chatId, finalText);
-  return true;
+  return sendLongReport(bot, chatId, finalText);
 }
 
 // ---------------------------------------------------------------------------
@@ -470,6 +500,7 @@ async function smartSend(bot, chatId, sections) {
 // ---------------------------------------------------------------------------
 export async function run(options = {}) {
   const { dryRun = false, verbose = false } = options;
+  assertShadowDryRun('06-notify', dryRun);
 
   log(`[notify] Starting — dryRun=${dryRun}`, 'info');
 
@@ -571,6 +602,12 @@ export async function run(options = {}) {
       }
     }
 
+    let telegramDelivery = {
+      sent: false,
+      plannedChunks: 0,
+      deliveredChunks: 0,
+      receiptSha256: null,
+    };
     if (dryRun) {
       log('[notify] DRY RUN — would have sent:', 'warn');
       for (const s of sections) {
@@ -578,7 +615,7 @@ export async function run(options = {}) {
       }
       if (sections.every(s => s.lines.length === 0)) log('[notify] [DRY] Nothing to report', 'info');
     } else {
-      await smartSend(bot, tgChatId, sections);
+      telegramDelivery = await smartSend(bot, tgChatId, sections);
     }
 
     const summary = {
@@ -589,7 +626,10 @@ export async function run(options = {}) {
       weeklyChanges:     weeklyChanges.length,
       monthlyChanges:    monthlyChanges.length,
       tripleCrowns:      tripleLines.length,
-      sent:              !dryRun && sections.some(s => s.lines.length > 0),
+      sent:              telegramDelivery.sent,
+      telegramPlannedChunks: telegramDelivery.plannedChunks,
+      telegramDeliveredChunks: telegramDelivery.deliveredChunks,
+      telegramReceiptSha256: telegramDelivery.receiptSha256,
       dryRun:            !!dryRun,
       runAt:             new Date().toISOString(),
     };
@@ -609,4 +649,4 @@ export async function run(options = {}) {
 // ---------------------------------------------------------------------------
 // Exports for testing
 // ---------------------------------------------------------------------------
-export { diffSnapshots };
+export { chunkLongReport, diffSnapshots, sendLongReport, summarizeTelegramReceipts };

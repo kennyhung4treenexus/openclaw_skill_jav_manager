@@ -5,7 +5,7 @@
  * per-item atomic cache, global dedupe, true limit, ingest lock.
  */
 
-import { log, readJson, getSkillPath, sleep, parseFlaresolverrPorts, restartFlareSolverr } from '../lib/shared.mjs';
+import { log, readJson, getSkillPath, sleep, parseFlaresolverrPorts, restartFlareSolverr, assertShadowDryRun, assertJavFlaresolverrPorts } from '../lib/shared.mjs';
 import { NotionClient } from '../lib/enrichers/notion-client.mjs';
 import { FlareSolverrPool } from '../lib/net/flaresolverr-pool.mjs';
 import { JavDBScraper } from '../lib/scrapers/javdb-scraper.mjs';
@@ -63,6 +63,7 @@ export async function run(options = {}) {
     maxPagesPerMaker = 5,
     downloadCovers = true,
   } = options;
+  assertShadowDryRun('01-ingest', dryRun);
 
   const workers = workersOption || parseInt(process.env.JAV_INGEST_WORKERS || '1', 10);
 
@@ -75,6 +76,7 @@ export async function run(options = {}) {
   }
 
   let notion = null;
+  let pool = null;
 
   try {
     // ── Init Notion ─────────────────────────────────────────
@@ -93,15 +95,21 @@ export async function run(options = {}) {
     const { aliases, makers, filters, makerAliases } = config;
 
     // ── Restart FlareSolverr containers ─────────────────────
-    const fsPorts = parseFlaresolverrPorts(process.env.JAV_FLARESOLVERR_PORTS);
+    const fsPorts = assertJavFlaresolverrPorts(
+      parseFlaresolverrPorts(process.env.JAV_FLARESOLVERR_PORTS, [8291, 8292, 8293])
+    );
     const clearVolumes = process.env.JAV_FLARESOLVERR_CLEAR_VOLUMES === 'true';
 
-    const restartResult = await restartFlareSolverr(fsPorts, { clearVolumes });
-    if (restartResult.errors.length > 0) {
-      log(`[ingest] FlareSolverr restart warnings: ${restartResult.errors.join('; ')}`, 'warn');
-    }
-    if (restartResult.restarted === 0) {
-      log('[ingest] FlareSolverr containers may not be running — pool may fail', 'warn');
+    if (!dryRun) {
+      const restartResult = await restartFlareSolverr(fsPorts, { clearVolumes });
+      if (restartResult.errors.length > 0) {
+        log(`[ingest] FlareSolverr restart warnings: ${restartResult.errors.join('; ')}`, 'warn');
+      }
+      if (restartResult.restarted === 0 && !restartResult.skipped) {
+        log('[ingest] No JAV-owned FlareSolverr container restarted', 'warn');
+      }
+    } else {
+      log('[ingest] DRY RUN: container lifecycle mutation is disabled', 'info');
     }
 
     // ── Init FlareSolverr pool ──────────────────────────────
@@ -109,7 +117,7 @@ export async function run(options = {}) {
     // Each worker sticks to one port; session rotates after every ~40 items
     const restartBetweenMakers = process.env.JAV_FLARESOLVERR_RESTART_BETWEEN_MAKERS !== 'false';
 
-    const pool = new FlareSolverrPool({
+    pool = new FlareSolverrPool({
       ports: fsPorts,
       maxTimeout: parseInt(process.env.JAV_FLARESOLVERR_TIMEOUT_MS || '60000', 10),
       warmupTimeout: 120000,
@@ -322,6 +330,12 @@ export async function run(options = {}) {
     if (notion) {
       try {
         await notion.close();
+      } catch {}
+    }
+
+    if (pool) {
+      try {
+        await pool.close();
       } catch {}
     }
 

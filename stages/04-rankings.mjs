@@ -13,7 +13,7 @@
  *   - dry-run does full diff but never writes to Notion
  */
 
-import { log, getSkillPath, writeJsonAtomic, sleep, notionRetry } from '../lib/shared.mjs';
+import { log, getSkillPath, writeJsonAtomic, sleep, notionRetry, assertShadowDryRun, assertJavFlaresolverrPorts } from '../lib/shared.mjs';
 import { Client } from '@notionhq/client';
 import { load as cheerioLoad } from 'cheerio';
 import { FlareSolverrPool } from '../lib/net/flaresolverr-pool.mjs';
@@ -109,10 +109,11 @@ function extractHrefSlug(href) {
 // FlareSolverr pool (shared class, same as Stage 01/03)
 // ---------------------------------------------------------------------------
 function createFlaresolverrPool() {
-  const rawPorts = process.env.JAV_FLARESOLVERR_PORTS || '8191,8192,8193';
+  const rawPorts = process.env.JAV_FLARESOLVERR_PORTS || '8291,8292,8293';
   const ports = rawPorts.split(',').map(p => parseInt(p.trim(), 10)).filter(Number.isInteger);
+  const isolatedPorts = assertJavFlaresolverrPorts(ports.length > 0 ? ports : [8291, 8292, 8293]);
   return new FlareSolverrPool({
-    ports: ports.length > 0 ? ports : [8191, 8192, 8193],
+    ports: isolatedPorts,
     maxTimeout: FLARESOLVERR_TIMEOUT,
     warmupTimeout: 120000,
     cooldownMs: 5 * 60 * 1000,
@@ -617,11 +618,13 @@ export function saveReconciliation(reconciliationData) {
 // ---------------------------------------------------------------------------
 export async function run(options = {}) {
   const { dryRun = false, verbose = false } = options;
+  assertShadowDryRun('04-rankings', dryRun);
   log(`[rankings] Starting — dryRun=${dryRun}`, 'info');
 
   // Init FlareSolverr pool
   const fsPool = createFlaresolverrPool();
   await fsPool.initialize();
+  try {
 
   let rankingReports;
   try {
@@ -722,6 +725,9 @@ export async function run(options = {}) {
   );
 
   return summary;
+  } finally {
+    await fsPool.close();
+  }
 }
 
 export const config = {

@@ -16,7 +16,7 @@
 
 import { Client } from '@notionhq/client';
 import { format, sub } from 'date-fns';
-import { log, notionRetry } from '../lib/shared.mjs';
+import { log, notionRetry, assertShadowDryRun } from '../lib/shared.mjs';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -190,6 +190,7 @@ async function tier2_archive(notion, databaseId, dryRun) {
 // ---------------------------------------------------------------------------
 export async function run(options = {}) {
   const { dryRun = false, client: injectedClient, databaseId: injectedDb } = options;
+  assertShadowDryRun('05-archive', dryRun);
 
   log(`[archive] Starting — dryRun=${dryRun}`, 'info');
 

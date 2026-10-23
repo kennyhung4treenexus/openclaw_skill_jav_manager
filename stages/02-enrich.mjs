@@ -16,7 +16,7 @@
  * 3. Use file_upload id in page properties
  */
 
-import { getSkillPath, readJson, writeJsonAtomic, log, sleep, notionRetry } from '../lib/shared.mjs';
+import { getSkillPath, readJson, writeJsonAtomic, log, sleep, notionRetry, assertShadowDryRun } from '../lib/shared.mjs';
 import { Client } from '@notionhq/client';
 import { existsSync, readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
@@ -217,6 +217,7 @@ function buildProperties(code, metadata, isFavorite, fileUploadId) {
 // ---------------------------------------------------------------------------
 export async function run(options = {}) {
   const { dryRun = false, verbose = false, limit = 0, concurrency = 3 } = options;
+  assertShadowDryRun('02-enrich', dryRun);
 
   log(`Starting Stage 2: Enrich — dryRun=${dryRun} concurrency=${concurrency} limit=${limit}`, 'info');
 

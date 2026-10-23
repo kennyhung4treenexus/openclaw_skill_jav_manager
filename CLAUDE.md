@@ -79,14 +79,16 @@ Runtime stack:
 | Scheduler | systemd user service/timers |
 | Tests | `node --test` |
 
-Shared FlareSolverr note, confirmed 2026-06-04:
+FlareSolverr placement:
 
-- Use only local endpoints `http://127.0.0.1:8191`, `http://127.0.0.1:8192`,
-  and `http://127.0.0.1:8193` from app code and diagnostics.
-- The three FlareSolverr containers are shared with News Editor. Restart,
-  recreate, version, or port/bind changes can affect both apps.
-- Current Docker bind is `0.0.0.0:8191-8193`; treat that as a server
-  architecture/security risk to review, not as a required app contract.
+- GCP legacy production may still observe shared `8191-8193`, but must not
+  restart/recreate them while News depends on them.
+- The accepted Edge layout reserves `8191-8193` for News and uses JAV-owned,
+  loopback-only `8291-8293` with `alfred.owner=jav-manager` labels.
+- JAV session rotation destroys only tracked `jav-*` sessions. Container
+  cleanup validates ownership and exact port binding before an optional
+  restart; it never recreates containers.
+- `JAV_SHADOW_MODE=true` requires dry-run and rejects News ports.
 
 Runtime files:
 
@@ -97,6 +99,16 @@ State:         /home/hungsvradmin/.local/state/jav-manager
 Wrapper logs:  /home/hungsvradmin/.local/state/jav-manager/logs
 App logs:      /home/hungsvradmin/.local/state/jav-manager/app-logs
 Secrets:       /home/hungsvradmin/apps/jav-manager/.env
+```
+
+Accepted Edge layout:
+
+```text
+Release:       /srv/alfred/prod/jav-manager/releases/<exact-sha>
+Current:       /srv/alfred/prod/jav-manager/current
+Config:        /srv/alfred/shared/jav-manager/config
+State:         /srv/alfred/shared/jav-manager/state
+Logs:          /srv/alfred/shared/jav-manager/logs
 ```
 
 Secrets must not be committed or copied into reports, prompts, chat, or generated
@@ -125,7 +137,7 @@ docs. Do not reveal raw `.env` values unless Kenny explicitly asks.
 | `stages/06-notify.mjs` | Telegram report for new videos, ranking changes, triple crowns, and failed items. |
 | `stages/07-delete.mjs` | Cleanup with dry-run default, protected files, recycle bin, lock guards. |
 | `tools/clean-notion.mjs` | Destructive Notion cleanup utility. Do not run without explicit approval. |
-| `post-pipeline.sh` | Recreates FlareSolverr containers after full pipeline runs. |
+| `post-pipeline.sh` | Unprivileged systemd/listener/health validation for exact JAV-owned FlareSolverr instances; optional restart requires an explicit privileged Docker backend. |
 
 ## Stage Notes
 
@@ -133,7 +145,8 @@ Stage 01:
 
 - Acquires `cache/ingest.lock`.
 - Fetches existing Notion codes to dedupe.
-- Restarts FlareSolverr before scraping.
+- Uses an already admitted JAV-owned pool; start-time restart is opt-in and
+  ownership-validated.
 - Uses worker queue with sticky FlareSolverr ports and session rotation.
 - Writes per-item JSON and covers under runtime cache.
 - Rebuilds `ingest-index.json` and merged `metadata.json` for compatibility.

@@ -1,0 +1,11 @@
+[Unit]
+Description=Periodic JAV-owned FlareSolverr self-healing
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+Persistent=false
+Unit=alfred-jav-flaresolverr-watchdog.service
+
+[Install]
+WantedBy=timers.target

@@ -2,10 +2,14 @@
 import { config as dotenvConfig } from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-const __dirname = dirname(fileURLToPath(import.meta.url));
-dotenvConfig({ path: resolve(__dirname, '.env') });
-import { log } from './lib/shared.mjs';
-import { execSync } from 'child_process';
+import { realpathSync } from 'fs';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const configRoot = process.env.JAV_MANAGER_CONFIG_ROOT || __dirname;
+const envFile = process.env.JAV_MANAGER_ENV_FILE || resolve(configRoot, '.env');
+dotenvConfig({ path: envFile });
+const { log, isShadowMode } = await import('./lib/shared.mjs');
+import { execFileSync } from 'child_process';
 
 /**
  * JAV Manager - Main entry point for the 7-stage sync pipeline
@@ -42,6 +46,7 @@ Options:
   --dry-run  - Simulate operations without making changes
   --verbose  - Show detailed logging
   --stage=<n> - Run specific stage only
+  --simulate-records=<n> - Synthetic Stage 3 records for isolated benchmarks
 
 Examples:
   node index.mjs ingest --dry-run
@@ -49,7 +54,7 @@ Examples:
   node index.mjs --stage=3
 
 Control Files:
-  The skill maintains JSON control files in the skill root:
+  Mutable control files resolve from JAV_MANAGER_CONFIG_ROOT:
   - aliases.json       - Actress name aliases
   - favorites.json     - Favorite items
   - graveyard.json     - Items to exclude
@@ -86,6 +91,11 @@ async function runStage(stageNumber, options = {}) {
     }
     
     const result = await stageModule.run(options);
+    if (result && (result.status === 'error' || result.status === 'failed')) {
+      const detail = result.error ||
+        (Array.isArray(result.errors) ? result.errors.join('; ') : 'stage reported failure');
+      throw new Error(`Stage ${stageName} returned status ${result.status}: ${detail}`);
+    }
     log(`Completed stage ${stageNumber}: ${stageName}`, 'info');
     return result;
     
@@ -101,10 +111,13 @@ async function runStage(stageNumber, options = {}) {
 
 async function cleanupFlareSolverr() {
   const scriptPath = resolve(__dirname, 'post-pipeline.sh');
-  log('Post-pipeline: recreating FlareSolverr containers to clear Chrome cache...', 'info');
+  log('Post-pipeline: validating and cleaning only JAV-owned FlareSolverr resources...', 'info');
   try {
-    execSync(`bash "${scriptPath}"`, { stdio: 'inherit' });
-    log('Post-pipeline: FlareSolverr containers recreated successfully', 'info');
+    execFileSync('bash', [scriptPath], {
+      stdio: 'inherit',
+      env: process.env,
+    });
+    log('Post-pipeline: JAV-owned FlareSolverr cleanup completed', 'info');
   } catch (err) {
     log(`Post-pipeline: FlareSolverr cleanup failed (non-fatal): ${err.message}`, 'warn');
   }
@@ -144,6 +157,7 @@ async function main() {
   const retryOnlyArg = args.find(arg => arg.startsWith('--retry-only'));
   const concurrencyArg = args.find(arg => arg.startsWith('--concurrency='));
   const maxRetryArg = args.find(arg => arg.startsWith('--max-retry-items='));
+  const simulateRecordsArg = args.find(arg => arg.startsWith('--simulate-records='));
   const options = {
     dryRun: args.includes('--dry-run'),
     verbose: args.includes('--verbose'),
@@ -154,7 +168,16 @@ async function main() {
     retryOnly: !!retryOnlyArg,
     concurrency: concurrencyArg ? parseInt(concurrencyArg.split('=')[1]) : undefined,
     maxRetryItems: maxRetryArg ? parseInt(maxRetryArg.split('=')[1]) : undefined,
+    simulateRecords: simulateRecordsArg
+      ? parseInt(simulateRecordsArg.split('=')[1], 10)
+      : undefined,
   };
+
+  if (isShadowMode() && options.dryRun !== true) {
+    throw new Error(
+      'JAV_SHADOW_MODE requires --dry-run; Notion and Telegram effects are fail-closed'
+    );
+  }
   
   // Check for stage-specific option
   const stageArg = args.find(arg => arg.startsWith('--stage='));
@@ -202,8 +225,20 @@ async function main() {
   }
 }
 
-// Run main if this is the main module
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Node canonicalizes import.meta.url through release symlinks while argv retains
+// the operator-facing /current path. Compare real paths so immutable-release
+// entrypoints execute instead of silently exiting after module initialization.
+const invokedEntrypoint = process.argv[1];
+const isMainModule = (() => {
+  if (!invokedEntrypoint) return false;
+  try {
+    return realpathSync(invokedEntrypoint) === realpathSync(__filename);
+  } catch {
+    return false;
+  }
+})();
+
+if (isMainModule) {
   main().catch(error => {
     console.error('Fatal error:', error);
     process.exit(1);
