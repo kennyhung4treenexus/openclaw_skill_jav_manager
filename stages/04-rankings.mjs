@@ -135,7 +135,9 @@ function createFlaresolverrPool() {
  * @param {object} context - { category, url, page }
  * @returns {object} Page result with codes and health indicators
  */
-function extractHotCodesFromHtml(html, context) {
+const JABLE_CODE_SLUG = /^[A-Z0-9]+(?:-[A-Z0-9]+)+$/;
+
+export function extractHotCodesFromHtml(html, context) {
   const $ = cheerioLoad(html);
 
   const result = {
@@ -149,53 +151,35 @@ function extractHotCodesFromHtml(html, context) {
     reasons: [],
   };
 
-  // Check page title
+  // h1 is recorded when present. A Jable block fragment does not need one.
   const h1Text = $('h1').first().text().trim();
   result.pageTitle = h1Text || null;
 
-  // Check for thumbnail grid and pagination
-  result.hasThumbnailGrid = $('div.thumbnail').length > 0;
-  result.hasPagination = $('nav span[aria-current="page"], nav a[aria-label]').length > 0 ||
-    $('nav input[name="page"]').length > 0;
+  result.hasThumbnailGrid = $('div.video-img-box').length > 0;
+  result.hasPagination = $('a[data-parameters*="from:"], a.page-link').length > 0;
 
-  // Per-thumbnail extraction: take only the first valid a[alt][href] from each .thumbnail block
-  $('div.thumbnail').each((_, el) => {
-    const anchor = $(el).find('a[alt][href]').first();
-    const rawAlt = anchor.attr('alt');
-    const href = anchor.attr('href');
-    const code = normalizeCode(rawAlt);
-
-    if (!code) return;
+  // First /videos/ anchor in each card. Other anchors, including /models/, are ignored.
+  $('div.video-img-box').each((_, el) => {
+    const href = $(el).find('a[href*="/videos/"]').first().attr('href');
+    if (!href) return;
     result.anchorCount++;
-    result.codes.add(code);
-
-    // Optional href/alt sanity check
-    if (href) {
-      const slug = extractHrefSlug(href);
-      if (slug && slug !== code) {
-        result.reasons.push(`alt/href mismatch: alt=${code} href=${slug}`);
-      }
-    }
+    const slug = extractHrefSlug(href);
+    if (!JABLE_CODE_SLUG.test(slug)) return;
+    result.codes.add(slug);
   });
 
   result.itemCount = result.codes.size;
 
-  // Suspicious detection
-  if (!result.pageTitle) {
-    result.suspicious = true;
-    result.reasons.push('no h1 title');
-  }
   if (!result.hasThumbnailGrid) {
     result.suspicious = true;
-    result.reasons.push('no .thumbnail grid found');
+    result.reasons.push('no video grid');
   }
   if (result.itemCount === 0) {
     result.suspicious = true;
     result.reasons.push('zero codes extracted');
   } else if (result.itemCount < MIN_CODES_PER_PAGE) {
-    // Low count could be a nearly-empty page or a sign of scrape trouble
     result.suspicious = true;
-    result.reasons.push(`low code count: ${result.itemCount} < ${MIN_CODES_PER_PAGE}`);
+    result.reasons.push('low code count');
   }
 
   return result;

@@ -16,6 +16,10 @@ test('preferMissavWs rewrites the old host and keeps the path', () => {
     'https://missav.ws/JUR-883-chinese-subtitle/',
   );
   assert.equal(preferMissavWs('https://javdb.com/v/abc'), 'https://javdb.com/v/abc');
+  assert.equal(
+    preferMissavWs('https://jable.tv/videos/abcd-001/'),
+    'https://jable.tv/videos/abcd-001/',
+  );
 });
 
 test('ranking and new-video style telegram links no longer use missav.ai', () => {
