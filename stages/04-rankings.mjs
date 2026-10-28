@@ -21,11 +21,13 @@ import { FlareSolverrPool } from '../lib/net/flaresolverr-pool.mjs';
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
-const RANKING_ENDPOINTS = [
-  { key: 'Daily Star',   url: 'https://missav.ws/dm301/today-hot?sort=released_at' },
-  { key: 'Weekly Star',  url: 'https://missav.ws/dm170/weekly-hot?sort=released_at' },
-  { key: 'Monthly Star', url: 'https://missav.ws/dm273/monthly-hot?sort=released_at' },
+export const RANKING_ENDPOINTS = [
+  { key: 'Daily Star',   url: 'https://jable.tv/hot/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed_today' },
+  { key: 'Weekly Star',  url: 'https://jable.tv/hot/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed_week' },
+  { key: 'Monthly Star', url: 'https://jable.tv/hot/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed_month' },
 ];
+
+export const RANKING_WARMUP_URL = 'https://jable.tv/hot/';
 
 const PAGES_PER_ENDPOINT    = 5;
 const MISSAV_PAGE_DELAY     = 2_000;
@@ -120,7 +122,7 @@ function createFlaresolverrPool() {
     requestDelayMs: 500,
     maxFailStreak: 2,
     session: `jav-rankings-${Date.now()}`,
-    warmupUrl: 'https://missav.ws/',
+    warmupUrl: RANKING_WARMUP_URL,
   });
 }
 
@@ -266,7 +268,8 @@ async function fetchRankingPage(pool, category, page, url) {
 
 /**
  * Build a ranking page URL without breaking an existing query string.
- * Page 1 keeps the endpoint as configured. Later pages set `page`.
+ * Page 1 keeps the endpoint as configured. Later pages set only `from`
+ * (zero-padded) and drop a stray `page` parameter.
  * @param {string} baseUrl
  * @param {number} page
  * @returns {string}
@@ -274,7 +277,8 @@ async function fetchRankingPage(pool, category, page, url) {
 export function rankingPageUrl(baseUrl, page) {
   if (page <= 1) return baseUrl;
   const url = new URL(baseUrl);
-  url.searchParams.set('page', String(page));
+  url.searchParams.delete('page');
+  url.searchParams.set('from', String(page).padStart(2, '0'));
   return url.toString();
 }
 
